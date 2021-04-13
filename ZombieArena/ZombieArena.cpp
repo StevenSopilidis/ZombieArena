@@ -10,13 +10,6 @@
 
 using namespace sf;
 
-int* returnNum()
-{
-	int* arrayNum = new int[2341];
-
-	return arrayNum;
-}
-
 int main()
 {
 	//single instance of the TextureHolder instance;
@@ -81,6 +74,14 @@ int main()
 	Texture textureCrosshair = TextureHolder::GetTexture("graphics/crosshair.png");
 	spriteCrosshair.setTexture(textureCrosshair);
 	spriteCrosshair.setOrigin(25, 25);
+
+	//create a couple of pickups
+	Pickup healthPickup(1);
+	Pickup ammoPickup(2);
+
+	//About the game
+	int score = 0;
+	int hiScore = 0;
 
 	// The main game loop
 	while (window.isOpen())
@@ -264,6 +265,11 @@ int main()
 				// Spawn the player in the middle of the arena
 				player.spawn(arena, resolution, tileSize);
 
+				//configure the pickups so the pickups
+				//'know' where to spawn
+				healthPickup.setArena(arena);
+				ammoPickup.setArena(arena);
+
 				//Create the zombie horde
 				numZombies = 10;
 				//Delete the previously allocalted memory
@@ -329,6 +335,73 @@ int main()
 				}
 			}
 
+			//update the pickups
+			healthPickup.update(dtAsSeconds);
+			ammoPickup.update(dtAsSeconds);
+
+
+			//check if any zombie has been shot
+			for (size_t i = 0; i < 100; i++)
+			{
+				for (size_t j = 0; j < numZombies; j++)
+				{
+					if (bullets[i].isInFlight() && zombies[j].isAlive())
+					{
+						//if bullet sprites "interacts" with the zombie sprite
+						if (bullets[i].getPosition().intersects(zombies[j].getPosition()))
+						{
+							//stop the bullet
+							bullets[i].stop();
+							//register shot check if zombie was killed
+							if (zombies[i].hit())
+							{
+								score += 10;
+								if (score >= hiScore)
+								{
+									hiScore = score;
+								}
+								numZombiesAlive--;
+
+								//when all zombies are dead level up the player
+								if (numZombies == 0)
+								{
+									state = State::LEVELING_UP;
+								}
+							}
+						}
+					}	
+				}
+			}
+
+			//check if the zombies has toched the player
+			for (size_t i = 0; i < numZombies; i++)
+			{
+				if (player.getPosition().intersects(zombies[i].getPosition()))
+				{
+					if (player.hit(gameTimeTotal))
+					{
+						/////
+					}
+					
+					if (player.getHealth() <= 0)
+					{
+						state = State::GAME_OVER;
+					}
+				}
+			}
+
+			//has the player touched the health pickup
+			if (player.getPosition().intersects(healthPickup.getPosition()))
+			{
+				player.increaseHealthLevel(healthPickup.gotIt());
+			}
+
+			//has the player touched the ammo pickup
+			if (player.getPosition().intersects(ammoPickup.getPosition()))
+			{
+				bulletsSpare += ammoPickup.gotIt();
+			}
+
 		}// End updating the scene
 
 		 /*
@@ -367,6 +440,16 @@ int main()
 			
 			// Draw the player
 			window.draw(player.getSprite());
+
+			//Draw the pickups
+			if (healthPickup.isSpawned())
+			{
+				window.draw(healthPickup.getSprite());
+			}
+			if (ammoPickup.isSpawned());
+			{
+				window.draw(ammoPickup.getSprite());
+			}
 
 			//draw the corsshair
 			window.draw(spriteCrosshair);
